@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Game</title>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        header {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+        #board {
+            width: 400px;
+            margin: 20px auto;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>Chess Game</header>
+    <div id="board"></div>
+    <button id="resetBtn">Reset Game</button>
+    <audio id="checkAlert" src="path/to/your/soundfile.mp3" preload="auto"></audio>
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script>
+        // const socket = io();
+        // const chess = new Chess();
+        // const board = ChessBoard('board', {
+        //     draggable: true,
+        //     position: 'start',
+        //     pieceTheme: '/img/chesspieces/{piece}.svg',  // Change this line
+        //     onDrop: (source, target) => {
+        //         const move = {
+        //             from: source,
+        //             to: target,
+        //             promotion: 'q'
+        //         };
+        //         const legalMove = chess.move(move);
+        //         if (legalMove) {
+        //             socket.emit('makeMove', legalMove);
+        //         }
+        //         return legalMove ? undefined : 'snapback';
+        //     },
+        //     onSnapEnd: () => board.position(chess.fen())
+        // });
+
+        // socket.on('moveMade', (move) => {
+        //     chess.move(move);
+        //     board.position(chess.fen());
+        // });
+
+        // document.getElementById('resetBtn').addEventListener('click', () => {
+        //     socket.emit('resetGame');
+        // });
+
+        // socket.on('gameReset', () => {
+        //     chess.reset();
+        //     board.start();
+        // });
+        const socket = io();
+        const chess = new Chess();
+        const board = ChessBoard('board', {
+            draggable: true,
+            position: 'start',
+            pieceTheme: '/img/chesspieces/{piece}.svg',
+            onDrop: (source, target) => {
+                const move = {
+                    from: source,
+                    to: target,
+                    promotion: 'q' // Automatically promote to a queen
+                     };
+        const legalMove = chess.move(move);
+
+                if (legalMove) {
+                    socket.emit('makeMove', legalMove);
+                    handleGameState(); // Check game state after a move
+                }
+                return legalMove ? undefined : 'snapback'; // Illegal move
+            },
+            onSnapEnd: () => board.position(chess.fen()),
+        });
+
+// Function to check game state
+            function handleGameState() {
+                if (chess.in_checkmate()) {
+                    alert("Checkmate! You lost the game.");
+                    socket.emit('gameOver', 'lost');
+                } else if (chess.in_check()) {
+                    document.getElementById('checkAlert').play(); // Play alert sound
+                    alert("Check!");
+                } else if (chess.in_stalemate()) {
+                    alert("Stalemate! The game is a draw.");
+                    socket.emit('gameOver', 'draw');
+                }
+            }
+
+            // Listen for moves made by other players
+            socket.on('moveMade', (move) => {
+                chess.move(move);
+                board.position(chess.fen());
+                handleGameState(); // Check game state after opponent's move
+            });
+
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                socket.emit('resetGame');
+            });
+
+            socket.on('gameReset', () => {
+                chess.reset();
+                board.start();
+            });
+
+            // Handle game over event
+            socket.on('gameOver', (result) => {
+                if (result === 'lost') {
+                    alert("Game Over! You have been checkmated.");
+                } else if (result === 'draw') {
+                    alert("Game Over! The game ended in a draw.");
+                }
+            });
+    </script>
+</body>
+</html>
